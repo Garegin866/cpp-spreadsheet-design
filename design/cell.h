@@ -3,21 +3,43 @@
 #include "common.h"
 #include "formula.h"
 
+#include <unordered_set>
+#include <vector>
+
+class Sheet;
+
 class Cell : public CellInterface {
 public:
-    Cell();
-    ~Cell();
+    using Value = CellInterface::Value;
+
+    explicit Cell(Sheet& sheet);
+    ~Cell() override;
 
     void Set(std::string text);
     void Clear();
 
-    Value GetValue() const override;
-    std::string GetText() const override;
+    [[nodiscard]] Value GetValue() const override;
+    [[nodiscard]] std::string GetText() const override;
+    [[nodiscard]] std::vector<Position> GetReferencedCells() const override;
 
 private:
     class Impl;
     class EmptyImpl;
     class TextImpl;
     class FormulaImpl;
+
+    [[nodiscard]] bool HasCircularReferences(Impl& impl);
+    void UpdateReferences();
+    void InvalidateCache();
+
+private:
+    Sheet& sheet_;
     std::unique_ptr<Impl> impl_;
+    mutable std::optional<Value> cache_;
+
+    std::unordered_set<Cell*> referenced_;
+    std::unordered_set<Cell*> dependents_;
+
+private:
+    void InvalidateCacheImpl(std::unordered_set<Cell*>& visited);
 };
